@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="SwatkatManga">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.json">
+<!-- Apple touch icon inline SVG workaround -->
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='80' fill='%230a0a0f'/><text x='256' y='340' font-size='280' text-anchor='middle'>📚</text></svg>">
+<title>SwatkatManga</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600&family=Space+Mono&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#080810;--s1:#0f0f1a;--s2:#161623;--s3:#1d1d2e;--s4:#242438;
+  --b1:#2c2c44;--b2:#363655;
+  --a1:#5b3fd4;--a2:#7c5ef5;--a3:#a48fff;--a4:#d4c8ff;
+  --ag:rgba(91,63,212,0.18);
+  --t1:#f0f0ff;--t2:#9898c0;--t3:#52527a;--t4:#333355;
+  --ok:#3ecf8e;--err:#ff5f5f;--warn:#ffb444;
+  --safe:env(safe-area-inset-bottom,0px);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:var(--bg);color:var(--t1);font-family:'DM Sans',sans-serif;overflow:hidden;overscroll-behavior:none;-webkit-font-smoothing:antialiased}
+
+/* ── NOISE TEXTURE ── */
+body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");opacity:.4;pointer-events:none;z-index:0}
+
+#app{display:flex;flex-direction:column;height:100dvh;max-width:430px;margin:0 auto;position:relative;z-index:1}
+.screen{display:none;flex-direction:column;flex:1;overflow:hidden}
+.screen.active{display:flex}
+.sa{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+.sa::-webkit-scrollbar{display:none}
+
+/* ── INSTALL BANNER ── */
+#install-banner{
+  display:none;align-items:center;gap:10px;padding:10px 14px;
+  background:linear-gradient(135deg,var(--a1),#3a1fa8);
+  flex-shrink:0;cursor:pointer;position:relative;overflow:hidden;
+}
+#install-banner::before{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.06),transparent);animation:shimmer 2s infinite}
+@keyframes shimmer{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+#install-banner.show{display:flex}
+.ib-icon{font-size:24px;flex-shrink:0}
+.ib-text{flex:1}
+.ib-title{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:white}
+.ib-sub{font-size:11px;color:rgba(255,255,255,.7);margin-top:1px}
+.ib-btn{padding:6px 14px;background:white;border:none;border-radius:20px;color:var(--a1);font-weight:700;font-size:12px;cursor:pointer;flex-shrink:0;font-family:'DM Sans',sans-serif}
+.ib-close{background:none;border:none;color:rgba(255,255,255,.6);cursor:pointer;padding:4px;flex-shrink:0;font-size:18px;line-height:1}
+
+/* ── NAV ── */
+#bnav{
+  display:flex;background:var(--s1);
+  border-top:1px solid var(--b1);
+  padding:5px 0 max(5px,var(--safe));
+  flex-shrink:0;z-index:50;
+  box-shadow:0 -1px 0 var(--b1),0 -20px 40px rgba(0,0,0,.3);
+}
+.nb{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:5px 2px;background:none;border:none;cursor:pointer;color:var(--t3);font-family:'DM Sans',sans-serif;font-size:9px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;transition:color .2s;position:relative}
+.nb.active{color:var(--a3)}
+.nb svg{width:21px;height:21px;transition:transform .2s}
+.nb.active svg{transform:scale(1.1)}
+.nb-pip{position:absolute;top:5px;right:calc(50% - 14px);width:5px;height:5px;border-radius:50%;background:var(--a2);opacity:0;transition:opacity .2s}
+.nb.active .nb-pip{opacity:1}
+
+/* ── SCREEN HEADERS ── */
+.sh{padding:14px 16px 11px;background:var(--s1);border-bottom:1px solid var(--b1);flex-shrink:0;display:flex;align-items:center;justify-content:space-between}
+.sh-left{}
+.st{font-family:'Syne',sans-serif;font-size:20px;font-weight:800;letter-spacing:-.02em;background:linear-gradient(135deg,var(--t1),var(--a3));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.ss{font-size:10px;color:var(--t3);margin-top:1px;font-family:'Space Mono',monospace}
+
+/* ── SEARCH BAR ── */
+.sbw{padding:9px 14px;background:var(--s1);border-bottom:1px solid var(--b1);flex-shrink:0}
+.sb{display:flex;align-items:center;gap:9px;background:var(--s3);border:1.5px solid var(--b1);border-radius:100px;padding:8px 15px;transition:all .2s}
+.sb:focus-within{border-color:var(--a2);background:var(--s4);box-shadow:0 0 0 3px var(--ag)}
+.sb svg{color:var(--t3);flex-shrink:0;width:15px;height:15px}
+.sb input{flex:1;background:none;border:none;outline:none;color:var(--t1);font-family:'DM Sans',sans-serif;font-size:14px}
+.sb input::placeholder{color:var(--t3)}
+.sb-x{background:none;border:none;cursor:pointer;color:var(--t3);display:flex;padding:2px}
+
+/* ── SOURCE TABS ── */
+.stabs{display:flex;gap:6px;padding:8px 14px;overflow-x:auto;flex-shrink:0;background:var(--s1);border-bottom:1px solid var(--b1)}
+.stabs::-webkit-scrollbar{display:none}
+.stab{flex-shrink:0;padding:5px 13px;border-radius:100px;font-size:11.5px;font-weight:600;cursor:pointer;border:1.5px solid var(--b1);background:none;color:var(--t3);transition:all .2s;font-family:'DM Sans',sans-serif}
+.stab.active{background:var(--a1);border-color:var(--a1);color:white;box-shadow:0 2px 12px rgba(91,63,212,.4)}
+.stab.srv{color:var(--t4);border-color:var(--b1)}
+.stab.srv.active{background:rgba(255,180,68,.12);border-color:var(--warn);color:var(--warn);box-shadow:none}
+
+/* ── STATES ── */
+.estate{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:40px 24px;text-align:center}
+.estate svg,.estate .e-ico{width:48px;height:48px;color:var(--t4);opacity:.7}
+.estate h3{font-family:'Syne',sans-serif;font-size:15px;color:var(--t2)}
+.estate p{font-size:12px;color:var(--t3);line-height:1.65;max-width:250px}
+.estate-btn{margin-top:8px;padding:9px 22px;background:var(--a1);border:none;border-radius:100px;color:white;font-family:'Syne',sans-serif;font-weight:700;font-size:13px;cursor:pointer}
+
+/* ── MANGA GRID ── */
+.mgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:10px}
+.mc{cursor:pointer;border-radius:8px;overflow:hidden;background:var(--s2);border:1px solid var(--b1);transition:transform .15s;position:relative}
+.mc:active{transform:scale(.94)}
+.mc-img{width:100%;aspect-ratio:2/3;object-fit:cover;background:var(--s3);display:block}
+.mc-ph{width:100%;aspect-ratio:2/3;background:var(--s3);display:flex;align-items:center;justify-content:center}
+.mc-info{padding:5px 7px 7px}
+.mc-title{font-size:10.5px;font-weight:500;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.mc-src{font-size:9px;color:var(--t3);margin-top:2px;font-family:'Space Mono',monospace}
+
+/* ── SOURCE GROUP HEADER ── */
+.sg-hdr{padding:10px 14px 4px;display:flex;align-items:center;gap:7px;font-size:10px;font-weight:700;color:var(--t3);font-family:'Space Mono',monospace;text-transform:uppercase;letter-spacing:.07em}
+.sg-cnt{background:var(--s3);border:1px solid var(--b1);padding:1px 7px;border-radius:100px;font-size:9px}
+
+/* ── HORIZONTAL SCROLL ── */
+.hrow{padding:12px 14px 4px}
+.hrow-t{font-family:'Syne',sans-serif;font-weight:700;font-size:14px;margin-bottom:9px;display:flex;align-items:center;gap:6px;color:var(--t1)}
+.hscr{display:flex;gap:8px;overflow-x:auto;padding-bottom:10px}
+.hscr::-webkit-scrollbar{display:none}
+.hc{flex-shrink:0;width:90px;cursor:pointer}
+.hc-img{width:90px;height:132px;border-radius:8px;object-fit:cover;background:var(--s3);display:block;border:1px solid var(--b1)}
+.hc-ph{width:90px;height:132px;border-radius:8px;background:var(--s3);display:flex;align-items:center;justify-content:center;border:1px solid var(--b1)}
+.hc-t{font-size:10px;font-weight:500;color:var(--t2);margin-top:5px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+
+/* ── LOADING ── */
+.lrow{display:flex;align-items:center;justify-content:center;gap:9px;padding:40px;color:var(--t3);font-size:12px}
+.spin{width:18px;height:18px;border:2px solid var(--b2);border-top-color:var(--a2);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── SERVER BAR ── */
+#sbar{display:flex;align-items:center;gap:8px;padding:6px 12px;background:var(--s2);border-bottom:1px solid var(--b1);flex-shrink:0}
+.sdot{width:6px;height:6px;border-radius:50%;background:var(--t3);flex-shrink:0;transition:all .3s}
+.sdot.on{background:var(--ok);box-shadow:0 0 5px var(--ok)}
+.sdot.off{background:var(--err)}
+.sdot.spin-dot{background:var(--warn);animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+#sbar-txt{flex:1;font-size:10.5px;color:var(--t3);font-family:'Space Mono',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#sbar-btn{padding:4px 11px;border:none;border-radius:100px;font-size:10.5px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;flex-shrink:0}
+
+/* ── DETAIL OVERLAY ── */
+#ds{position:fixed;inset:0;z-index:200;background:var(--bg);display:none;flex-direction:column;max-width:430px;margin:0 auto}
+#ds.open{display:flex}
+.dhdr{display:flex;align-items:center;gap:10px;padding:13px 14px;background:var(--s1);border-bottom:1px solid var(--b1);flex-shrink:0}
+.bbtn{background:rgba(255,255,255,.06);border:none;cursor:pointer;color:var(--t1);padding:7px;display:flex;border-radius:10px;transition:background .15s}
+.bbtn:active{background:rgba(255,255,255,.12)}
+.dscr{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.dscr::-webkit-scrollbar{display:none}
+.dhero{padding:16px 14px;display:flex;gap:13px;background:linear-gradient(180deg,var(--s1) 0%,var(--bg) 100%)}
+.dcov{width:100px;height:148px;border-radius:10px;object-fit:cover;background:var(--s3);flex-shrink:0;box-shadow:0 12px 32px rgba(0,0,0,.7)}
+.dcov-ph{width:100px;height:148px;border-radius:10px;background:var(--s3);flex-shrink:0;display:flex;align-items:center;justify-content:center;border:1px solid var(--b1)}
+.dmeta{flex:1;display:flex;flex-direction:column;gap:6px;min-width:0}
+.dtitle{font-family:'Syne',sans-serif;font-size:15px;font-weight:800;line-height:1.25}
+.dauthor{font-size:11.5px;color:var(--t2)}
+.dsrc{display:inline-flex;padding:2px 8px;border-radius:100px;font-size:9.5px;font-weight:700;font-family:'Space Mono',monospace;background:rgba(124,94,245,.15);color:var(--a3);border:1px solid rgba(124,94,245,.25)}
+.dacts{display:flex;gap:6px;margin-top:auto;padding-top:4px}
+.dbp{flex:1;padding:9px;background:var(--a1);border:none;border-radius:100px;color:white;font-family:'Syne',sans-serif;font-weight:700;font-size:12px;cursor:pointer;box-shadow:0 3px 12px rgba(91,63,212,.4);transition:opacity .15s}
+.dbp:active{opacity:.8}
+.dbs{padding:9px 12px;background:var(--s3);border:1.5px solid var(--b2);border-radius:100px;color:var(--t2);font-family:'Syne',sans-serif;font-weight:700;font-size:12px;cursor:pointer}
+.ddesc{padding:12px 14px;font-size:12px;line-height:1.7;color:var(--t2)}
+.ddesc.col{display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.dexp{background:none;border:none;color:var(--a3);font-size:12px;padding:0 14px 10px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600}
+.dtags{display:flex;flex-wrap:wrap;gap:4px;padding:0 14px 14px}
+.dtag{padding:3px 8px;background:var(--s3);border:1px solid var(--b1);border-radius:100px;font-size:10px;color:var(--t2)}
+.chdr{padding:10px 14px;display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--b1)}
+.chtit{font-family:'Syne',sans-serif;font-weight:700;font-size:13px}
+.chcnt{font-size:10px;color:var(--t3);font-family:'Space Mono',monospace}
+.chi{display:flex;align-items:center;justify-content:space-between;padding:11px 14px;border-bottom:1px solid var(--b1);cursor:pointer;transition:background .1s;gap:8px}
+.chi:active{background:var(--s2)}
+.chi.read .chin,.chi.read .chd{opacity:.4}
+.chin{font-weight:600;font-size:13px;line-height:1.2}
+.chd{font-size:9.5px;color:var(--t3);margin-top:2px;font-family:'Space Mono',monospace}
+.chg{font-size:9.5px;color:var(--a3);margin-top:2px}
+
+/* ── READER ── */
+#rs{position:fixed;inset:0;z-index:300;background:#000;display:none;flex-direction:column;max-width:430px;margin:0 auto}
+#rs.open{display:flex}
+#rtb{display:flex;align-items:center;gap:10px;padding:max(12px,env(safe-area-inset-top,12px)) 14px 12px;background:linear-gradient(to bottom,rgba(0,0,0,.95),transparent);position:absolute;top:0;left:0;right:0;z-index:10;transition:opacity .25s,transform .25s}
+#rtb.hide{opacity:0;transform:translateY(-8px);pointer-events:none}
+#rscr{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+#rscr::-webkit-scrollbar{display:none}
+.rp{width:100%;display:block}
+#rtit{flex:1;font-family:'Syne',sans-serif;font-size:12px;font-weight:700;color:white;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#rpinf{font-family:'Space Mono',monospace;font-size:10px;color:rgba(255,255,255,.5);flex-shrink:0}
+.r-back{background:rgba(255,255,255,.12);border:none;cursor:pointer;color:white;display:flex;padding:7px;border-radius:9px;backdrop-filter:blur(6px)}
+/* Bottom reader nav */
+#rnav{position:absolute;bottom:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:14px 14px max(14px,var(--safe));background:linear-gradient(to top,rgba(0,0,0,.95),transparent);transition:opacity .25s}
+#rnav.hide{opacity:0;pointer-events:none}
+.rnav-btn{background:rgba(255,255,255,.1);border:none;color:white;padding:8px 18px;border-radius:100px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;backdrop-filter:blur(6px)}
+.rnav-btn:disabled{opacity:.3}
+
+/* ── HISTORY ── */
+.hi{display:flex;align-items:center;gap:11px;padding:10px 14px;border-bottom:1px solid var(--b1);cursor:pointer;transition:background .1s}
+.hi:active{background:var(--s2)}
+.hi-img{width:40px;height:58px;border-radius:7px;object-fit:cover;background:var(--s3);flex-shrink:0}
+.hi-tit{font-weight:600;font-size:13px;line-height:1.3}
+.hi-ch{font-size:11px;color:var(--a3);margin-top:3px}
+.hi-tm{font-size:9.5px;color:var(--t3);margin-top:2px;font-family:'Space Mono',monospace}
+
+/* ── MORE ── */
+.mtabs{display:flex;border-bottom:1px solid var(--b1);background:var(--s1);flex-shrink:0}
+.mtab{flex:1;padding:11px;text-align:center;font-size:11.5px;font-weight:600;color:var(--t3);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s}
+.mtab.active{color:var(--a3);border-bottom-color:var(--a3)}
+.esec{padding:10px 14px 5px;font-size:9.5px;font-weight:700;color:var(--t3);font-family:'Space Mono',monospace;letter-spacing:.08em;text-transform:uppercase}
+.ei{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--b1)}
+.eico{width:36px;height:36px;border-radius:9px;background:var(--s3);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:17px;border:1px solid var(--b1)}
+.ename{font-weight:600;font-size:13px}
+.emeta{font-size:10px;color:var(--t3);margin-top:2px;display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.badge{display:inline-flex;padding:2px 7px;border-radius:100px;font-size:9px;font-weight:700}
+.badge.ok{background:rgba(62,207,142,.1);color:var(--ok)}
+.badge.srv{background:rgba(255,180,68,.1);color:var(--warn)}
+.badge.nsfw{background:rgba(255,95,95,.1);color:var(--err)}
+.ebtn{padding:5px 11px;border-radius:100px;font-size:11px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;border:1.5px solid var(--b1);background:var(--s3);color:var(--t2)}
+
+/* ── SETTINGS ── */
+.seti{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--b1)}
+.setlbl{font-size:13px;font-weight:500}
+.setdsc{font-size:11px;color:var(--t3);margin-top:2px}
+.tog{width:42px;height:24px;background:var(--b2);border-radius:100px;position:relative;cursor:pointer;transition:background .2s;flex-shrink:0}
+.tog.on{background:var(--a1)}
+.tog::after{content:'';position:absolute;width:18px;height:18px;background:white;border-radius:50%;top:3px;left:3px;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.tog.on::after{left:21px}
+
+/* ── NOTICE ── */
+.notice{margin:12px 14px;background:rgba(91,63,212,.07);border:1px solid rgba(91,63,212,.2);border-radius:12px;padding:13px}
+.notice h4{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:var(--a3);margin-bottom:5px}
+.notice p{font-size:11.5px;color:var(--t3);line-height:1.7}
+.notice code{background:var(--s3);padding:1px 5px;border-radius:4px;font-family:'Space Mono',monospace;font-size:10px;color:var(--t2)}
+
+/* ── TOAST ── */
+#toast{position:fixed;bottom:calc(68px + var(--safe));left:50%;transform:translateX(-50%) translateY(14px);background:var(--s3);border:1px solid var(--b2);padding:9px 18px;border-radius:100px;font-size:12px;color:var(--t1);opacity:0;transition:all .22s;z-index:1000;white-space:nowrap;max-width:calc(100vw - 28px);text-align:center;box-shadow:0 4px 24px rgba(0,0,0,.5);pointer-events:none}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ── SERVER PANEL ── */
+#srv-panel{display:none;position:fixed;inset:0;z-index:400;align-items:flex-end;background:rgba(0,0,0,.65);backdrop-filter:blur(4px)}
+#srv-panel.open{display:flex}
+.srv-box{width:100%;max-width:430px;margin:0 auto;background:var(--s2);border-radius:16px 16px 0 0;padding:20px 16px max(20px,var(--safe));border-top:1px solid var(--b2)}
+.srv-box h3{font-family:'Syne',sans-serif;font-weight:800;font-size:17px;margin-bottom:5px}
+.srv-box p{font-size:12px;color:var(--t3);line-height:1.6;margin-bottom:14px}
+.srv-input{width:100%;background:var(--s3);border:1.5px solid var(--b1);border-radius:10px;padding:11px 14px;color:var(--t1);font-size:13px;font-family:'Space Mono',monospace;outline:none;margin-bottom:12px}
+.srv-input:focus{border-color:var(--a2)}
+.srv-btns{display:flex;gap:8px}
+.srv-btn{flex:1;padding:11px;border:none;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:opacity .15s}
+.srv-btn:active{opacity:.8}
+.srv-btn.p{background:var(--a1);color:white}
+.srv-btn.s{background:var(--s4);color:var(--t2);border:1.5px solid var(--b2)}
+
+/* ── SOURCES LIST ── */
+.sl-item{display:flex;align-items:center;gap:9px;padding:9px 14px;border-bottom:1px solid var(--b1)}
+.sl-flag{width:32px;height:32px;border-radius:8px;background:var(--s3);display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--t3);font-family:'Space Mono',monospace;flex-shrink:0;border:1px solid var(--b1)}
+.sl-name{font-size:12px;font-weight:600}
+.sl-url{font-size:9.5px;color:var(--t3);font-family:'Space Mono',monospace;margin-top:1px}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ══ INSTALL BANNER ══ -->
+  <div id="install-banner">
+    <div class="ib-icon">📲</div>
+    <div class="ib-text">
+      <div class="ib-title">Install SwatkatManga</div>
+      <div class="ib-sub">Add to home screen for app-like experience</div>
+    </div>
+    <button class="ib-btn" id="ib-install-btn">Install</button>
+    <button class="ib-close" onclick="dismissInstall()">✕</button>
+  </div>
+
+  <!-- ══ LIBRARY ══ -->
+  <div id="scr-library" class="screen active">
+    <div class="sh">
+      <div class="sh-left">
+        <div class="st">SwatkatManga</div>
+        <div class="ss" id="lib-sub">Your library</div>
+      </div>
+      <button onclick="switchScreen('browse')" style="background:var(--a1);border:none;border-radius:100px;color:white;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif">+ Browse</button>
+    </div>
+    <div class="sa" id="lib-sa">
+      <div id="lib-empty" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:60px 30px;text-align:center">
+        <div style="font-size:56px;line-height:1">📚</div>
+        <div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:700;color:var(--t2)">Library is empty</div>
+        <div style="font-size:12px;color:var(--t3);line-height:1.6;max-width:220px">Search for manga and bookmark them to read anytime</div>
+        <button onclick="switchScreen('browse')" class="estate-btn">Browse Manga</button>
+      </div>
+      <div id="lib-grid" class="mgrid" style="display:none"></div>
+    </div>
+  </div>
+
+  <!-- ══ UPDATES ══ -->
+  <div id="scr-updates" class="screen">
+    <div class="sh"><div class="sh-left"><div class="st">Updates</div><div class="ss">New chapter releases</div></div></div>
+    <div class="sa"><div class="estate"><div style="font-size:48px">🔔</div><h3>No updates yet</h3><p>Save manga to your library to track new chapters</p></div></div>
+  </div>
+
+  <!-- ══ HISTORY ══ -->
+  <div id="scr-history" class="screen">
+    <div class="sh"><div class="sh-left"><div class="st">History</div><div class="ss">Recently read</div></div></div>
+    <div class="sa" id="hist-list">
+      <div class="estate" id="hist-empty"><div style="font-size:48px">🕐</div><h3>No history yet</h3><p>Chapters you read will appear here</p></div>
+    </div>
+  </div>
+
+  <!-- ══ BROWSE ══ -->
+  <div id="scr-browse" class="screen">
+    <div id="sbar">
+      <div class="sdot" id="sdot"></div>
+      <span id="sbar-txt">No server — MangaDex &amp; ComicK work without one</span>
+      <button id="sbar-btn" onclick="openSrvPanel()" style="background:var(--a1);color:white;border:none">Setup</button>
+    </div>
+    <div class="sbw">
+      <div class="sb">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input id="si" type="search" placeholder="Search manga..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+        <button class="sb-x" id="sx" style="display:none" onclick="clearSrc()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+      </div>
+    </div>
+    <div class="stabs" id="stabs">
+      <button class="stab active" data-s="all"       onclick="setTab(this,'all')">All Sources</button>
+      <button class="stab"        data-s="mangadex"  onclick="setTab(this,'mangadex')">MangaDex ✓</button>
+      <button class="stab"        data-s="comick"    onclick="setTab(this,'comick')">ComicK ✓</button>
+      <button class="stab srv"    data-s="mangafire" onclick="setTab(this,'mangafire')">MangaFire</button>
+      <button class="stab srv"    data-s="asura"     onclick="setTab(this,'asura')">Asura</button>
+      <button class="stab srv"    data-s="reaper"    onclick="setTab(this,'reaper')">ReaperScans</button>
+      <button class="stab srv"    data-s="bato"      onclick="setTab(this,'bato')">Bato.to</button>
+    </div>
+    <div class="sa" id="bsa">
+      <div id="br-def">
+        <div class="notice">
+          <h4>📱 Installed as App? Great!</h4>
+          <p>✅ <strong>MangaDex & ComicK</strong> work right now — tap search above.<br>
+          ⚡ Want <strong>490+ more sources</strong>? Deploy <code>server.js</code> to Railway (free) then tap <strong>Setup</strong> → connect.</p>
+        </div>
+        <div class="hrow">
+          <div class="hrow-t">🔥 Popular</div>
+          <div class="hscr" id="pop-row"><div class="lrow"><div class="spin"></div></div></div>
+        </div>
+        <div class="hrow">
+          <div class="hrow-t">🆕 Latest Updated</div>
+          <div class="hscr" id="lat-row"><div class="lrow"><div class="spin"></div></div></div>
+        </div>
+      </div>
+      <div id="br-srch" style="display:none">
+        <div id="ss-idle" class="estate"><div style="font-size:44px">🔍</div><h3>Search manga</h3><p id="ss-hint">Searching MangaDex + ComicK</p></div>
+        <div id="ss-load" class="estate" style="display:none"><div class="spin" style="width:34px;height:34px;border-width:2.5px"></div><h3>Searching...</h3><p id="ss-src-lbl"></p></div>
+        <div id="ss-err"  class="estate" style="display:none"><div style="font-size:44px">⚠️</div><h3 id="ss-et">Search failed</h3><p id="ss-em"></p><button class="estate-btn" onclick="retrySrc()">Retry</button></div>
+        <div id="ss-none" class="estate" style="display:none"><div style="font-size:44px">😕</div><h3>No results</h3><p>Try different keywords</p></div>
+        <div id="ss-res"  style="display:none"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ MORE ══ -->
+  <div id="scr-more" class="screen">
+    <div class="sh"><div class="sh-left"><div class="st">More</div></div></div>
+    <div class="mtabs">
+      <div class="mtab active" onclick="mTab(this,'ext')">Extensions</div>
+      <div class="mtab" onclick="mTab(this,'src')">Sources</div>
+      <div class="mtab" onclick="mTab(this,'set')">Settings</div>
+    </div>
+    <div class="sa" id="more-sa">
+      <div id="mt-ext">
+        <div class="esec">Direct API — Always works</div>
+        <div class="ei"><div class="eico">🌐</div><div style="flex:1"><div class="ename">MangaDex</div><div class="emeta">EN · v1.4.200 <span class="badge ok">✓ No server</span></div></div><button class="ebtn">Installed</button></div>
+        <div class="ei"><div class="eico">💥</div><div style="flex:1"><div class="ename">ComicK</div><div class="emeta">EN · v1.4.26 <span class="badge ok">✓ No server</span></div></div><button class="ebtn">Installed</button></div>
+        <div class="esec" style="margin-top:6px">Proxy Server — 490+ sources</div>
+        <div class="ei"><div class="eico">🔥</div><div style="flex:1"><div class="ename">MangaFire</div><div class="emeta">EN <span class="badge srv">⚡ Needs server</span></div></div><button class="ebtn">Installed</button></div>
+        <div class="ei"><div class="eico">⚡</div><div style="flex:1"><div class="ename">Asura Scans</div><div class="emeta">EN <span class="badge srv">⚡ Needs server</span></div></div><button class="ebtn">Installed</button></div>
+        <div class="ei"><div class="eico">💀</div><div style="flex:1"><div class="ename">ReaperScans</div><div class="emeta">EN <span class="badge srv">⚡ Needs server</span></div></div><button class="ebtn">Installed</button></div>
+        <div class="ei"><div class="eico">🐼</div><div style="flex:1"><div class="ename">Bato.to</div><div class="emeta">ALL <span class="badge srv">⚡ Needs server</span></div></div><button class="ebtn">Installed</button></div>
+        <div class="notice">
+          <h4>🚀 Want all 490+ sources?</h4>
+          <p>Deploy <code>server.js</code> + <code>package.json</code> to Railway for free.<br>Then connect it in Browse → Setup.</p>
+        </div>
+      </div>
+      <div id="mt-src" style="display:none">
+        <div id="src-lst"><div class="lrow"><div class="spin"></div> Loading Keiyoushi index...</div></div>
+      </div>
+      <div id="mt-set" style="display:none">
+        <div class="esec" style="padding-top:14px">Reader</div>
+        <div class="seti"><div><div class="setlbl">Vertical scroll</div><div class="setdsc">Scroll pages top to bottom</div></div><div class="tog on" onclick="this.classList.toggle('on')"></div></div>
+        <div class="seti"><div><div class="setlbl">Keep screen on</div><div class="setdsc">Prevent sleep while reading</div></div><div class="tog" id="wl-tog" onclick="toggleWL(this)"></div></div>
+        <div class="seti"><div><div class="setlbl">NSFW sources</div><div class="setdsc">Show adult content sources</div></div><div class="tog" id="nsfw-tog" onclick="this.classList.toggle('on')"></div></div>
+        <div class="esec">Server</div>
+        <div class="seti">
+          <div><div class="setlbl">Proxy server</div><div class="setdsc" id="srv-disp">Not connected</div></div>
+          <button onclick="openSrvPanel()" style="padding:5px 12px;background:var(--a1);border:none;border-radius:100px;color:white;font-size:11px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif">Change</button>
+        </div>
+        <div class="esec">App</div>
+        <div class="seti">
+          <div><div class="setlbl">Install as App</div><div class="setdsc">Add to home screen</div></div>
+          <button id="install-set-btn" onclick="triggerInstall()" style="padding:5px 12px;background:var(--a1);border:none;border-radius:100px;color:white;font-size:11px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif">Install</button>
+        </div>
+        <div class="seti"><div><div class="setlbl">SwatkatManga PWA</div><div class="setdsc">v4.0 · 490+ sources · Built for Raja</div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ BOTTOM NAV ══ -->
+  <nav id="bnav">
+    <button class="nb active" id="nb-library" onclick="switchScreen('library')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25"/></svg>
+      Library<div class="nb-pip"></div>
+    </button>
+    <button class="nb" id="nb-updates" onclick="switchScreen('updates')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0"/></svg>
+      Updates<div class="nb-pip"></div>
+    </button>
+    <button class="nb" id="nb-history" onclick="switchScreen('history')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      History<div class="nb-pip"></div>
+    </button>
+    <button class="nb" id="nb-browse" onclick="switchScreen('browse')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      Browse<div class="nb-pip"></div>
+    </button>
+    <button class="nb" id="nb-more" onclick="switchScreen('more')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"/></svg>
+      More<div class="nb-pip"></div>
+    </button>
+  </nav>
+</div>
+
+<!-- ══ DETAIL OVERLAY ══ -->
+<div id="ds">
+  <div class="dhdr">
+    <button class="bbtn" onclick="closeDetail()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5m7-7-7 7 7 7"/></svg></button>
+    <span id="d-ht" style="font-family:'Syne',sans-serif;font-weight:700;font-size:15px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+    <button onclick="toggleLib()" style="background:rgba(255,255,255,.06);border:none;cursor:pointer;color:var(--t1);display:flex;padding:7px;border-radius:9px">
+      <svg id="lib-ico" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0z"/></svg>
+    </button>
+  </div>
+  <div class="dscr">
+    <div class="dhero">
+      <img id="d-cov" class="dcov" style="display:none" alt="">
+      <div id="d-cov-ph" class="dcov-ph"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" color="var(--t4)"><rect width="18" height="18" x="3" y="3" rx="2"/></svg></div>
+      <div class="dmeta">
+        <div class="dtitle" id="d-t">Loading...</div>
+        <div class="dauthor" id="d-a"></div>
+        <div id="d-s" class="dsrc"></div>
+        <div class="dacts">
+          <button class="dbp" onclick="startRead()">▶ Read</button>
+          <button class="dbs" onclick="toggleLib()">+ Library</button>
+        </div>
+      </div>
+    </div>
+    <div class="ddesc col" id="d-desc"></div>
+    <button class="dexp" id="d-exp" onclick="expandDesc()">Show more ▾</button>
+    <div class="dtags" id="d-tags"></div>
+    <div class="chdr"><span class="chtit">Chapters</span><span class="chcnt" id="d-cc"></span></div>
+    <div id="d-chl"><div class="lrow"><div class="spin"></div> Loading chapters...</div></div>
+  </div>
+</div>
+
+<!-- ══ READER ══ -->
+<div id="rs">
+  <div id="rtb">
+    <button class="r-back" onclick="closeReader()"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5m7-7-7 7 7 7"/></svg></button>
+    <span id="rtit"></span>
+    <span id="rpinf"></span>
+  </div>
+  <div id="rscr" onclick="toggleRTB()">
+    <div id="rpgs"><div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100dvh;gap:14px;color:var(--t2)"><div class="spin" style="width:30px;height:30px;border-width:2.5px"></div><span style="font-size:13px">Loading pages...</span></div></div>
+  </div>
+  <div id="rnav">
+    <button class="rnav-btn" id="r-prev" onclick="prevChap()">← Prev</button>
+    <span id="r-chap-lbl" style="font-size:11px;color:rgba(255,255,255,.5);font-family:'Space Mono',monospace"></span>
+    <button class="rnav-btn" id="r-next" onclick="nextChap()">Next →</button>
+  </div>
+</div>
+
+<!-- ══ SERVER PANEL ══ -->
+<div id="srv-panel">
+  <div class="srv-box">
+    <h3>🔌 Proxy Server</h3>
+    <p>Deploy <code>server.js</code> to Railway (free) to unlock all 490+ sources. Or enter <code>http://localhost:3000</code> if running locally.</p>
+    <input id="srv-inp" class="srv-input" type="url" placeholder="https://your-app.up.railway.app">
+    <div class="srv-btns">
+      <button class="srv-btn s" onclick="closeSrvPanel()">Cancel</button>
+      <button class="srv-btn p" onclick="connectSrv()">Connect</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ══════ PWA SERVICE WORKER REGISTRATION ══════
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js')
+      .then(r => console.log('✅ SW registered'))
+      .catch(e => console.log('SW reg failed:', e));
+  });
+}
+
+// ══════ PWA INSTALL PROMPT ══════
+let deferredPrompt = null;
+let installDismissed = localStorage.getItem('sm_install_dismissed');
+
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  if (!installDismissed) {
+    setTimeout(() => document.getElementById('install-banner').classList.add('show'), 1500);
+  }
+});
+
+window.addEventListener('appinstalled', () => {
+  document.getElementById('install-banner').classList.remove('show');
+  deferredPrompt = null;
+  toast('✅ App installed! Find it on your home screen');
+});
+
+function triggerInstall() {
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(r => {
+      if (r.outcome === 'accepted') toast('Installing SwatkatManga...');
+      deferredPrompt = null;
+    });
+  } else {
+    // iOS instructions
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    if (isIOS) {
+      toast('Tap Share → "Add to Home Screen" in Safari');
+    } else {
+      toast('Open in Chrome browser to install as app');
+    }
+  }
+}
+
+function dismissInstall() {
+  document.getElementById('install-banner').classList.remove('show');
+  localStorage.setItem('sm_install_dismissed', '1');
+}
+
+document.getElementById('ib-install-btn').onclick = () => triggerInstall();
+
+// ══════ STATE ══════
+let PROXY = localStorage.getItem('sm_proxy') || '';
+let srvOnline = false;
+let library  = JSON.parse(localStorage.getItem('sm_lib')  || '[]');
+let histData = JSON.parse(localStorage.getItem('sm_hist') || '[]');
+let curManga = null, curChaps = [], curSrc = 'all', curChapIdx = 0;
+let srchTm = null, lastQ = '';
+let brInit = false;
+
+// ══════ INIT ══════
+renderLib();
+updateSrvBar();
+if (PROXY) testSrv(true);
+
+// ══════ SCREEN NAV ══════
+function switchScreen(n) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nb').forEach(b => b.classList.remove('active'));
+  document.getElementById('scr-' + n).classList.add('active');
+  document.getElementById('nb-' + n).classList.add('active');
+  if (n === 'browse' && !brInit) { brInit = true; loadPop(); loadLat(); }
+  if (n === 'library') renderLib();
+  if (n === 'history') renderHist();
+}
+
+function mTab(el, tab) {
+  document.querySelectorAll('.mtab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  ['ext','src','set'].forEach(t => document.getElementById('mt-' + t).style.display = t === tab ? '' : 'none');
+  if (tab === 'src') loadSrcList();
+  if (tab === 'set') document.getElementById('srv-disp').textContent = PROXY || 'Not connected';
+}
+
+// ══════ SERVER ══════
+function openSrvPanel() { document.getElementById('srv-inp').value = PROXY; document.getElementById('srv-panel').classList.add('open'); }
+function closeSrvPanel() { document.getElementById('srv-panel').classList.remove('open'); }
+
+async function connectSrv() {
+  const v = document.getElementById('srv-inp').value.trim().replace(/\/$/,'');
+  if (!v) { toast('Enter a server URL'); return; }
+  PROXY = v; localStorage.setItem('sm_proxy', PROXY);
+  closeSrvPanel();
+  await testSrv();
+}
+
+async function testSrv(silent = false) {
+  if (!PROXY) return;
+  updateSrvBar('testing');
+  try {
+    const r = await fetch(PROXY + '/', { signal: AbortSignal.timeout(6000) });
+    const d = await r.json();
+    if (d.status) { srvOnline = true; updateSrvBar('online'); if (!silent) toast('🟢 Connected! 490+ sources unlocked!'); }
+  } catch { srvOnline = false; updateSrvBar('offline'); if (!silent) toast('❌ Cannot reach server'); }
+}
+
+function updateSrvBar(st) {
+  const dot = document.getElementById('sdot'), txt = document.getElementById('sbar-txt'), btn = document.getElementById('sbar-btn');
+  if (st === 'online') {
+    dot.className = 'sdot on'; txt.textContent = '490+ sources active via proxy server';
+    btn.textContent = 'Change'; btn.style.cssText = 'background:var(--s4);color:var(--t2);border:1.5px solid var(--b2)';
+    btn.onclick = () => openSrvPanel();
+  } else if (st === 'offline') {
+    dot.className = 'sdot off'; txt.textContent = 'Server offline — check it';
+    btn.textContent = 'Retry'; btn.style.cssText = 'background:var(--a1);color:white;border:none';
+    btn.onclick = () => testSrv();
+  } else if (st === 'testing') {
+    dot.className = 'sdot spin-dot'; txt.textContent = 'Connecting to server...';
+  } else {
+    dot.className = 'sdot'; txt.textContent = PROXY ? 'Tap to reconnect server' : 'MangaDex & ComicK work without a server';
+    btn.textContent = 'Setup'; btn.style.cssText = 'background:var(--a1);color:white;border:none';
+    btn.onclick = () => openSrvPanel();
+  }
+}
+
+// ══════ MANGADEX ══════
+const MD = 'https://api.mangadex.org', CV = 'https://uploads.mangadex.org/covers';
+const mdT = a => a.title?.en || Object.values(a.title||{})[0] || 'Unknown';
+const mdC = m => { const r = m.relationships?.find(x => x.type==='cover_art'); return r?.attributes?.fileName ? `${CV}/${m.id}/${r.attributes.fileName}.256.jpg` : ''; };
+const mdA = m => m.relationships?.find(x => x.type==='author')?.attributes?.name || '';
+
+async function mdSrc(q) {
+  const r = await fetch(`${MD}/manga?title=${encodeURIComponent(q)}&limit=20&includes[]=cover_art&contentRating[]=safe&contentRating[]=suggestive&order[relevance]=desc`);
+  return ((await r.json()).data||[]).map(m => ({id:m.id,title:mdT(m.attributes),cover:mdC(m),url:`https://mangadex.org/title/${m.id}`,source:'mangadex'}));
+}
+async function mdPop() { const r = await fetch(`${MD}/manga?limit=16&includes[]=cover_art&contentRating[]=safe&contentRating[]=suggestive&order[followedCount]=desc`); return (await r.json()).data||[]; }
+async function mdLat() { const r = await fetch(`${MD}/manga?limit=16&includes[]=cover_art&contentRating[]=safe&contentRating[]=suggestive&order[latestUploadedChapter]=desc`); return (await r.json()).data||[]; }
+
+// ══════ COMICK ══════
+async function ckSrc(q) {
+  const r = await fetch(`https://api.comick.fun/v1.0/search?q=${encodeURIComponent(q)}&limit=20&tachiyomi=true`,{headers:{'User-Agent':'Tachiyomi/1.0'}});
+  const d = await r.json();
+  return (Array.isArray(d)?d:[]).map(m=>({id:m.hid,title:m.title||m.slug,cover:m.cover_url?`https://meo.comick.pictures/${m.cover_url}`:'',url:`https://comick.io/comic/${m.slug}`,source:'comick'}));
+}
+
+// ══════ PROXY ══════
+async function pxSrc(q, src) {
+  if (!srvOnline) throw new Error('Server not connected');
+  const r = await fetch(`${PROXY}/search?q=${encodeURIComponent(q)}&source=${src}`);
+  const d = await r.json();
+  return Object.entries(d.results||{}).flatMap(([s,items])=>(items||[]).map(x=>({...x,source:s})));
+}
+
+// ══════ BROWSE ══════
+async function loadPop() { try { renderHRow('pop-row', await mdPop()); } catch { document.getElementById('pop-row').innerHTML='<span style="font-size:11px;color:var(--t3);padding:10px">Failed to load</span>'; } }
+async function loadLat() { try { renderHRow('lat-row', await mdLat()); } catch { document.getElementById('lat-row').innerHTML='<span style="font-size:11px;color:var(--t3);padding:10px">Failed to load</span>'; } }
+
+function renderHRow(id, list) {
+  document.getElementById(id).innerHTML = list.map(m => {
+    const t=mdT(m.attributes), c=mdC(m);
+    return `<div class="hc" onclick="openDetail('${m.id}','mangadex')">
+      ${c?`<img class="hc-img" src="${x(c)}" loading="lazy" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`:``}
+      <div class="hc-ph" ${c?'style="display:none"':''}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" color="var(--t4)"><rect width="18" height="18" x="3" y="3" rx="2"/></svg></div>
+      <div class="hc-t">${x(t)}</div>
+    </div>`;
+  }).join('');
+}
+
+// ══════ SEARCH ══════
+document.getElementById('si').addEventListener('input', function() {
+  const q = this.value.trim();
+  document.getElementById('sx').style.display = q ? '' : 'none';
+  updateHint();
+  if (q.length < 2) { showDef(); return; }
+  hideDef();
+  clearTimeout(srchTm);
+  srchTm = setTimeout(() => doSrch(q), 380);
+});
+
+function updateHint() {
+  const h = {
+    all:srvOnline?'MangaDex + ComicK + 490+ proxy sources':'MangaDex + ComicK (server adds 490+ more)',
+    mangadex:'MangaDex official API',comick:'ComicK official API',
+    mangafire:srvOnline?'MangaFire via proxy':'⚠ Needs proxy server',
+    asura:srvOnline?'Asura Scans via proxy':'⚠ Needs proxy server',
+    reaper:srvOnline?'ReaperScans via proxy':'⚠ Needs proxy server',
+    bato:srvOnline?'Bato.to via proxy':'⚠ Needs proxy server',
+  };
+  document.getElementById('ss-hint').textContent = h[curSrc]||'';
+}
+
+function setTab(el, src) {
+  document.querySelectorAll('.stab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active'); curSrc=src; updateHint();
+  const q=document.getElementById('si').value.trim();
+  if(q.length>=2) doSrch(q);
+}
+function clearSrc() { document.getElementById('si').value=''; document.getElementById('sx').style.display='none'; showDef(); }
+function showDef() { document.getElementById('br-def').style.display=''; document.getElementById('br-srch').style.display='none'; }
+function hideDef() { document.getElementById('br-def').style.display='none'; document.getElementById('br-srch').style.display=''; }
+
+async function doSrch(q) {
+  lastQ=q; sst('load'); document.getElementById('ss-src-lbl').textContent=`on ${curSrc==='all'?'all sources':curSrc}`;
+  try {
+    let res=[];
+    if(curSrc==='all') {
+      const tasks=[mdSrc(q).catch(()=>[]),ckSrc(q).catch(()=>[])];
+      if(srvOnline){tasks.push(pxSrc(q,'mangafire').catch(()=>[]));tasks.push(pxSrc(q,'asura').catch(()=>[]));}
+      res=(await Promise.all(tasks)).flat();
+    } else if(curSrc==='mangadex') res=await mdSrc(q);
+    else if(curSrc==='comick') res=await ckSrc(q);
+    else {
+      if(!srvOnline){sst('err','Server not connected',`Connect proxy server to search ${curSrc}`);return;}
+      res=await pxSrc(q,curSrc);
+    }
+    if(!res.length){sst('none');return;}
+    renderRes(res);
+  } catch(e){sst('err','Search failed',e.message);}
+}
+function retrySrc(){if(lastQ)doSrch(lastQ);}
+
+function sst(s,et,em) {
+  ['idle','load','err','none','res'].forEach(i=>{const el=document.getElementById('ss-'+i);if(el)el.style.display=s===i?(s==='res'?'block':'flex'):'none';});
+  if(et)document.getElementById('ss-et').textContent=et;
+  if(em)document.getElementById('ss-em').textContent=em;
+}
+
+const srcL={mangadex:'MangaDex',comick:'ComicK',mangafire:'MangaFire',asura:'Asura Scans',reaper:'ReaperScans',bato:'Bato.to'};
+function renderRes(list) {
+  const g={};list.forEach(m=>{if(!g[m.source])g[m.source]=[];g[m.source].push(m);});
+  let h='';
+  Object.entries(g).forEach(([src,items])=>{
+    h+=`<div class="sg-hdr">${srcL[src]||src}<span class="sg-cnt">${items.length}</span></div><div class="mgrid">`;
+    items.forEach(m=>{
+      const img=m.cover&&PROXY&&!m.cover.includes('mangadex.org')&&!m.cover.includes('comick.pictures')?`${PROXY}/image?url=${encodeURIComponent(m.cover)}&referer=${encodeURIComponent(m.url||'')}`:m.cover;
+      h+=`<div class="mc" onclick="openDetail(${JSON.stringify(m.id||m.url)},${JSON.stringify(m.source)})">
+        ${img?`<img class="mc-img" src="${x(img)}" loading="lazy" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`:``}
+        <div class="mc-ph" ${img?'style="display:none"':''}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" color="var(--t4)"><rect width="18" height="18" x="3" y="3" rx="2"/></svg></div>
+        <div class="mc-info"><div class="mc-title">${x(m.title)}</div><div class="mc-src">${srcL[src]||src}</div></div>
+      </div>`;
+    });
+    h+='</div>';
+  });
+  document.getElementById('ss-res').innerHTML=h; sst('res');
+}
+
+// ══════ DETAIL ══════
+async function openDetail(id, source) {
+  curManga=null; curChaps=[];
+  document.getElementById('ds').classList.add('open');
+  document.getElementById('d-t').textContent='Loading...';
+  ['d-a','d-desc','d-tags'].forEach(i=>document.getElementById(i).textContent='');
+  document.getElementById('d-cov').style.display='none'; document.getElementById('d-cov-ph').style.display='flex';
+  document.getElementById('d-chl').innerHTML='<div class="lrow"><div class="spin"></div> Loading...</div>';
+  document.getElementById('d-cc').textContent=''; document.getElementById('d-s').textContent=source;
+
+  try {
+    if(source==='mangadex'){
+      const r=await fetch(`${MD}/manga/${id}?includes[]=cover_art&includes[]=author`);
+      const d=await r.json(); const m=d.data,a=m.attributes;
+      curManga={id,source,attrs:a,rels:m.relationships};
+      const tt=mdT(a);
+      document.getElementById('d-ht').textContent=tt; document.getElementById('d-t').textContent=tt;
+      document.getElementById('d-a').textContent=mdA(m);
+      document.getElementById('d-desc').textContent=a.description?.en||'No description.';
+      document.getElementById('d-desc').classList.add('col'); document.getElementById('d-exp').style.display='';
+      const cov=mdC(m);
+      if(cov){const img=document.getElementById('d-cov');img.src=cov;img.style.display='';document.getElementById('d-cov-ph').style.display='none';}
+      document.getElementById('d-tags').innerHTML=(a.tags||[]).map(t=>t.attributes?.name?.en).filter(Boolean).slice(0,10).map(t=>`<span class="dtag">${x(t)}</span>`).join('');
+      updateLibIco();
+      const cr=await fetch(`${MD}/manga/${id}/feed?limit=300&translatedLanguage[]=en&order[chapter]=desc&includes[]=scanlation_group`);
+      curChaps=(await cr.json()).data||[];
+      document.getElementById('d-cc').textContent=`${curChaps.length} chapters`;
+      renderChaps(curChaps,'mangadex');
+
+    } else if(source==='comick'){
+      const r=await fetch(`https://api.comick.fun/comic/${id}?tachiyomi=true`,{headers:{'User-Agent':'Tachiyomi/1.0'}});
+      const d=await r.json(),c=d.comic||d;
+      curManga={id,source,title:c.title,cover:c.cover_url?`https://meo.comick.pictures/${c.cover_url}`:''};
+      document.getElementById('d-ht').textContent=c.title||id; document.getElementById('d-t').textContent=c.title||id;
+      document.getElementById('d-desc').textContent=c.desc||''; document.getElementById('d-exp').style.display='';
+      if(curManga.cover){const img=document.getElementById('d-cov');img.src=curManga.cover;img.style.display='';document.getElementById('d-cov-ph').style.display='none';}
+      updateLibIco();
+      const cr=await fetch(`https://api.comick.fun/comic/${id}/chapters?lang=en&tachiyomi=true&limit=300`,{headers:{'User-Agent':'Tachiyomi/1.0'}});
+      curChaps=(await cr.json()).chapters||[];
+      document.getElementById('d-cc').textContent=`${curChaps.length} chapters`;
+      renderChapsCK(curChaps);
+
+    } else if(srvOnline) {
+      curManga={id,source,title:id};
+      document.getElementById('d-ht').textContent=id; document.getElementById('d-t').textContent=id;
+      document.getElementById('d-exp').style.display='none'; updateLibIco();
+      const cr=await fetch(`${PROXY}/chapters?id=${encodeURIComponent(id)}&source=${source}`);
+      curChaps=(await cr.json()).chapters||[];
+      document.getElementById('d-cc').textContent=`${curChaps.length} chapters`;
+      renderChapsGen(curChaps);
+    } else {
+      document.getElementById('d-t').textContent='Server needed';
+      document.getElementById('d-chl').innerHTML='<div class="estate"><p>Connect your proxy server to view this source</p></div>';
+    }
+  } catch(e) {
+    document.getElementById('d-t').textContent='Failed to load';
+    document.getElementById('d-chl').innerHTML=`<div class="estate"><p style="color:var(--err)">${x(e.message)}</p></div>`;
+  }
+}
+
+function renderChaps(chs,src) {
+  const rs=new Set(JSON.parse(localStorage.getItem('sm_read')||'[]'));
+  document.getElementById('d-chl').innerHTML=chs.map((ch,i)=>{
+    const a=ch.attributes,num=a.chapter?`Chapter ${a.chapter}`:`#${i+1}`;
+    const grp=ch.relationships?.find(r=>r.type==='scanlation_group')?.attributes?.name||'';
+    const dt=a.publishAt?new Date(a.publishAt).toLocaleDateString('en',{month:'short',day:'numeric',year:'numeric'}):'';
+    return `<div class="chi ${rs.has(ch.id)?'read':''}" onclick="openReader(${i})">
+      <div><div class="chin">${x(num)}</div>${grp?`<div class="chg">${x(grp)}</div>`:''}<div class="chd">${dt}</div></div>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" color="var(--t3)"><path d="M9 5l7 7-7 7"/></svg>
+    </div>`;
+  }).join('');
+}
+function renderChapsCK(chs) {
+  const rs=new Set(JSON.parse(localStorage.getItem('sm_read')||'[]'));
+  document.getElementById('d-chl').innerHTML=chs.map((ch,i)=>`
+    <div class="chi ${rs.has(ch.hid)?'read':''}" onclick="openReader(${i})">
+      <div><div class="chin">${x(ch.chap?`Chapter ${ch.chap}`:ch.title||`#${i+1}`)}</div></div>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" color="var(--t3)"><path d="M9 5l7 7-7 7"/></svg>
+    </div>`).join('');
+}
+function renderChapsGen(chs) {
+  document.getElementById('d-chl').innerHTML=chs.map((ch,i)=>`
+    <div class="chi" onclick="openReader(${i})">
+      <div><div class="chin">${x(ch.title||`Chapter ${i+1}`)}</div></div>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" color="var(--t3)"><path d="M9 5l7 7-7 7"/></svg>
+    </div>`).join('');
+}
+function closeDetail(){document.getElementById('ds').classList.remove('open');}
+function expandDesc(){document.getElementById('d-desc').classList.remove('col');document.getElementById('d-exp').style.display='none';}
+
+// ══════ LIBRARY ══════
+function toggleLib(){
+  if(!curManga) return;
+  const i=library.findIndex(m=>m.id===curManga.id);
+  if(i>=0){library.splice(i,1);toast('Removed from library');}
+  else{library.push({id:curManga.id,source:curManga.source,title:curManga.attrs?mdT(curManga.attrs):curManga.title||curManga.id,cover:curManga.attrs?mdC({id:curManga.id,relationships:curManga.rels}):curManga.cover||'',addedAt:Date.now()});toast('Added to library ✓');}
+  localStorage.setItem('sm_lib',JSON.stringify(library));updateLibIco();renderLib();
+}
+function updateLibIco(){if(!curManga)return;document.getElementById('lib-ico').setAttribute('fill',library.some(m=>m.id===curManga.id)?'currentColor':'none');}
+function renderLib(){
+  const e=document.getElementById('lib-empty'),g=document.getElementById('lib-grid');
+  if(!library.length){e.style.display='flex';g.style.display='none';document.getElementById('lib-sub').textContent='Your library';return;}
+  e.style.display='none';g.style.display='grid';document.getElementById('lib-sub').textContent=`${library.length} manga`;
+  g.innerHTML=library.map(m=>`
+    <div class="mc" onclick="openDetail('${x(m.id)}','${m.source}')">
+      ${m.cover?`<img class="mc-img" src="${x(m.cover)}" loading="lazy" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`:``}
+      <div class="mc-ph" ${m.cover?'style="display:none"':''}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" color="var(--t4)"><rect width="18" height="18" x="3" y="3" rx="2"/></svg></div>
+      <div class="mc-info"><div class="mc-title">${x(m.title)}</div><div class="mc-src">${m.source}</div></div>
+    </div>`).join('');
+}
+
+// ══════ READER ══════
+async function startRead(){if(!curChaps.length){toast('No chapters');return;}openReader(0);}
+
+async function openReader(idx) {
+  curChapIdx=idx;
+  const ch=curChaps[idx];
+  const src=curManga?.source||'mangadex';
+  let chId, chName;
+  if(src==='mangadex'){chId=ch.id;chName=`Chapter ${ch.attributes?.chapter||idx+1}`;}
+  else if(src==='comick'){chId=ch.hid;chName=`Chapter ${ch.chap||idx+1}`;}
+  else{chId=ch.url;chName=ch.title||`Chapter ${idx+1}`;}
+
+  document.getElementById('rs').classList.add('open');
+  document.getElementById('rtit').textContent=chName;
+  document.getElementById('rpinf').textContent='';
+  document.getElementById('r-chap-lbl').textContent=chName;
+  document.getElementById('r-prev').disabled=idx>=curChaps.length-1;
+  document.getElementById('r-next').disabled=idx<=0;
+  document.getElementById('rpgs').innerHTML='<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100dvh;gap:14px;color:var(--t2)"><div class="spin" style="width:30px;height:30px;border-width:2.5px"></div><span style="font-size:13px">Loading pages...</span></div>';
+  rbarVis=true;document.getElementById('rtb').classList.remove('hide');document.getElementById('rnav').classList.remove('hide');
+
+  // Mark read
+  const ra=JSON.parse(localStorage.getItem('sm_read')||'[]');
+  if(!ra.includes(chId)){ra.push(chId);localStorage.setItem('sm_read',JSON.stringify(ra));}
+
+  // History
+  if(curManga){
+    const title=curManga.attrs?mdT(curManga.attrs):curManga.title||'';
+    const cover=curManga.attrs?mdC({id:curManga.id,relationships:curManga.rels}):curManga.cover||'';
+    histData=histData.filter(h=>h.chId!==chId);
+    histData.unshift({mangaId:curManga.id,mangaTitle:title,cover,chId,chName,source:src,readAt:Date.now()});
+    if(histData.length>100)histData=histData.slice(0,100);
+    localStorage.setItem('sm_hist',JSON.stringify(histData));
+  }
+
+  try {
+    let pages=[];
+    if(src==='mangadex'){
+      const r=await fetch(`${MD}/at-home/server/${chId}`);
+      const d=await r.json();
+      pages=(d.chapter?.data||[]).map(p=>`${d.baseUrl}/data/${d.chapter.hash}/${p}`);
+    } else if(src==='comick'){
+      const r=await fetch(`https://api.comick.fun/chapter/${chId}?tachiyomi=true`,{headers:{'User-Agent':'Tachiyomi/1.0'}});
+      const d=await r.json();
+      pages=(d.chapter?.images||[]).map(i=>i.url);
+    } else if(srvOnline){
+      const r=await fetch(`${PROXY}/pages?id=${encodeURIComponent(chId)}&source=${src}`);
+      const d=await r.json();
+      pages=(d.pages||[]).map(p=>`${PROXY}/image?url=${encodeURIComponent(p)}&referer=${encodeURIComponent(chId)}`);
+    }
+    if(!pages.length){document.getElementById('rpgs').innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100dvh;color:var(--err);padding:20px;text-align:center">No pages found</div>';return;}
+    const total=pages.length;
+    document.getElementById('rpinf').textContent=`1/${total}`;
+    document.getElementById('rpgs').innerHTML=pages.map((u,i)=>`<img class="rp" src="${x(u)}" loading="${i<3?'eager':'lazy'}" alt="p${i+1}" onload="if(this.getBoundingClientRect().top<window.innerHeight*1.5)document.getElementById('rpinf').textContent='${i+1}/${total}'">`).join('');
+    document.getElementById('rscr').scrollTop=0;
+  } catch(e){document.getElementById('rpgs').innerHTML=`<div style="display:flex;align-items:center;justify-content:center;height:100dvh;color:var(--err);padding:20px;text-align:center">${x(e.message)}</div>`;}
+}
+
+function prevChap(){if(curChapIdx<curChaps.length-1)openReader(curChapIdx+1);}
+function nextChap(){if(curChapIdx>0)openReader(curChapIdx-1);}
+
+let rbarVis=true;
+function toggleRTB(){rbarVis=!rbarVis;document.getElementById('rtb').classList.toggle('hide',!rbarVis);document.getElementById('rnav').classList.toggle('hide',!rbarVis);}
+function closeReader(){document.getElementById('rs').classList.remove('open');renderChaps(curChaps,curManga?.source||'mangadex');}
+
+// ══════ HISTORY ══════
+function renderHist(){
+  const l=document.getElementById('hist-list'),e=document.getElementById('hist-empty');
+  if(!histData.length){e.style.display='flex';return;}
+  e.style.display='none';
+  l.innerHTML='<div id="hist-empty" style="display:none"></div>'+histData.map(h=>`
+    <div class="hi" onclick="openDetail('${x(h.mangaId)}','${h.source||'mangadex'}')">
+      ${h.cover?`<img class="hi-img" src="${x(h.cover)}" loading="lazy" alt="">` : '<div class="hi-img"></div>'}
+      <div><div class="hi-tit">${x(h.mangaTitle||'Unknown')}</div><div class="hi-ch">${x(h.chName)}</div><div class="hi-tm">${timeAgo(h.readAt)}</div></div>
+    </div>`).join('');
+}
+
+// ══════ SOURCES LIST ══════
+async function loadSrcList(){
+  const el=document.getElementById('src-lst');if(el.dataset.loaded)return;
+  try{
+    const r=await fetch('https://raw.githubusercontent.com/keiyoushi/extensions/repo/index.min.json');
+    const data=await r.json();
+    const seen=new Set(),uni=[];
+    data.forEach(e=>e.sources.forEach(s=>{if(!seen.has(s.baseUrl)){seen.add(s.baseUrl);uni.push({name:s.name,baseUrl:s.baseUrl,lang:e.lang,nsfw:e.nsfw});}}));
+    const byL={};uni.forEach(s=>{const l=s.lang||'other';if(!byL[l])byL[l]=[];byL[l].push(s);});
+    let h=`<div style="padding:9px 14px;font-size:10px;color:var(--t3);font-family:'Space Mono',monospace">${data.length} EXTENSIONS · ${uni.length} UNIQUE SITES</div>`;
+    ['en','all','zh','ko','ja','fr','es','pt','de','id'].forEach(lang=>{
+      const items=byL[lang];if(!items?.length)return;
+      h+=`<div class="esec">${lang.toUpperCase()} (${items.length})</div>`;
+      items.slice(0,20).forEach(s=>{h+=`<div class="sl-item"><div class="sl-flag">${s.lang?.slice(0,2)?.toUpperCase()||'??'}</div><div style="flex:1;min-width:0"><div class="sl-name">${x(s.name)}</div><div class="sl-url">${x(s.baseUrl)}</div></div>${s.nsfw?'<span class="badge nsfw">18+</span>':''}</div>`;});
+      if(items.length>20)h+=`<div style="padding:5px 14px;font-size:10px;color:var(--t3)">+${items.length-20} more</div>`;
+    });
+    el.innerHTML=h;el.dataset.loaded='1';
+  }catch{el.innerHTML='<div class="estate"><p style="color:var(--err)">Failed to load</p></div>';}
+}
+
+// ══════ WAKE LOCK ══════
+let wl=null;
+async function toggleWL(tog){
+  tog.classList.toggle('on');
+  if(tog.classList.contains('on')){
+    try{wl=await navigator.wakeLock?.request('screen');toast('Screen will stay on ☀️');}
+    catch{toast('Wake lock not supported on this device');}
+  }else{wl?.release();wl=null;}
+}
+
+// ══════ UTILS ══════
+const x=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const toast=(msg,dur=2500)=>{const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),dur);};
+const timeAgo=ts=>{const d=Date.now()-ts;if(d<6e4)return'Just now';if(d<36e5)return`${~~(d/6e4)}m ago`;if(d<864e5)return`${~~(d/36e5)}h ago`;return`${~~(d/864e5)}d ago`;};
+
+// Handle back button on Android
+window.addEventListener('popstate', () => {
+  if(document.getElementById('rs').classList.contains('open')){closeReader();return;}
+  if(document.getElementById('ds').classList.contains('open')){closeDetail();return;}
+});
+</script>
+</body>
+</html>
