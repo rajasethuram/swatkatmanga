@@ -534,7 +534,7 @@ function dismissInstall() {
 document.getElementById('ib-install-btn').onclick = () => triggerInstall();
 
 // ══════ STATE ══════
-let PROXY = localStorage.getItem('sm_proxy') || '';
+let PROXY = localStorage.getItem('sm_proxy') || 'https://swatkatmanga-server.onrender.com';
 let srvOnline = false;
 let library  = JSON.parse(localStorage.getItem('sm_lib')  || '[]');
 let histData = JSON.parse(localStorage.getItem('sm_hist') || '[]');
