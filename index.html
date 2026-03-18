@@ -613,17 +613,37 @@ const mdT = a => a.title?.en || Object.values(a.title||{})[0] || 'Unknown';
 const mdC = m => { const r = m.relationships?.find(x => x.type==='cover_art'); return r?.attributes?.fileName ? `${CV}/${m.id}/${r.attributes.fileName}.256.jpg` : ''; };
 const mdA = m => m.relationships?.find(x => x.type==='author')?.attributes?.name || '';
 
-async function mdSrc(q) {
-  const r = await fetch(`${MD}/manga?title=${encodeURIComponent(q)}&limit=20&includes[]=cover_art&contentRating[]=safe&contentRating[]=suggestive&order[relevance]=desc`);
-  return ((await r.json()).data||[]).map(m => ({id:m.id,title:mdT(m.attributes),cover:mdC(m),url:`https://mangadex.org/title/${m.id}`,source:'mangadex'}));
+async function apiFetch(url, opts={}) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 15000);
+  try {
+    const r = await fetch(url, { ...opts, signal: ctrl.signal });
+    clearTimeout(timer);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return await r.json();
+  } catch(e) {
+    clearTimeout(timer);
+    if (e.name === 'AbortError') throw new Error('Request timed out');
+    throw e;
+  }
 }
-async function mdPop() { const r = await fetch(`${MD}/manga?limit=16&includes[]=cover_art&contentRating[]=safe&contentRating[]=suggestive&order[followedCount]=desc`); return (await r.json()).data||[]; }
-async function mdLat() { const r = await fetch(`${MD}/manga?limit=16&includes[]=cover_art&contentRating[]=safe&contentRating[]=suggestive&order[latestUploadedChapter]=desc`); return (await r.json()).data||[]; }
+
+async function mdSrc(q) {
+  const d = await apiFetch(`${MD}/manga?title=${encodeURIComponent(q)}&limit=20&includes[]=cover_art&contentRating[]=safe&contentRating[]=suggestive&order[relevance]=desc`);
+  return (d.data||[]).map(m => ({id:m.id,title:mdT(m.attributes),cover:mdC(m),url:`https://mangadex.org/title/${m.id}`,source:'mangadex'}));
+}
+async function mdPop() {
+  const d = await apiFetch(`${MD}/manga?limit=16&includes[]=cover_art&contentRating[]=safe&contentRating[]=suggestive&order[followedCount]=desc`);
+  return d.data||[];
+}
+async function mdLat() {
+  const d = await apiFetch(`${MD}/manga?limit=16&includes[]=cover_art&contentRating[]=safe&contentRating[]=suggestive&order[latestUploadedChapter]=desc`);
+  return d.data||[];
+}
 
 // ══════ COMICK ══════
 async function ckSrc(q) {
-  const r = await fetch(`https://api.comick.fun/v1.0/search?q=${encodeURIComponent(q)}&limit=20&tachiyomi=true`,{headers:{'User-Agent':'Tachiyomi/1.0'}});
-  const d = await r.json();
+  const d = await apiFetch(`https://api.comick.fun/v1.0/search?q=${encodeURIComponent(q)}&limit=20&tachiyomi=true`);
   return (Array.isArray(d)?d:[]).map(m=>({id:m.hid,title:m.title||m.slug,cover:m.cover_url?`https://meo.comick.pictures/${m.cover_url}`:'',url:`https://comick.io/comic/${m.slug}`,source:'comick'}));
 }
 
@@ -687,17 +707,40 @@ async function doSrch(q) {
   lastQ=q; sst('load'); document.getElementById('ss-src-lbl').textContent=`on ${curSrc==='all'?'all sources':curSrc}`;
   try {
     let res=[];
+    const errs=[];
+
     if(curSrc==='all') {
-      const tasks=[mdSrc(q).catch(()=>[]),ckSrc(q).catch(()=>[])];
-      if(srvOnline){tasks.push(pxSrc(q,'mangafire').catch(()=>[]));tasks.push(pxSrc(q,'asura').catch(()=>[]));}
-      res=(await Promise.all(tasks)).flat();
-    } else if(curSrc==='mangadex') res=await mdSrc(q);
-    else if(curSrc==='comick') res=await ckSrc(q);
-    else {
+      // Run both in parallel, collect errors for debugging
+      const [mdRes, ckRes] = await Promise.all([
+        mdSrc(q).catch(e=>{errs.push('MangaDex: '+e.message);return[];}),
+        ckSrc(q).catch(e=>{errs.push('ComicK: '+e.message);return[];})
+      ]);
+      res=[...mdRes,...ckRes];
+      if(srvOnline){
+        const [mfRes,asRes]=await Promise.all([
+          pxSrc(q,'mangafire').catch(()=>[]),
+          pxSrc(q,'asura').catch(()=>[])
+        ]);
+        res=[...res,...mfRes,...asRes];
+      }
+    } else if(curSrc==='mangadex') {
+      res=await mdSrc(q).catch(e=>{errs.push(e.message);return[];});
+    } else if(curSrc==='comick') {
+      res=await ckSrc(q).catch(e=>{errs.push(e.message);return[];});
+    } else {
       if(!srvOnline){sst('err','Server not connected',`Connect proxy server to search ${curSrc}`);return;}
-      res=await pxSrc(q,curSrc);
+      res=await pxSrc(q,curSrc).catch(e=>{errs.push(e.message);return[];});
     }
-    if(!res.length){sst('none');return;}
+
+    if(!res.length){
+      // Show what went wrong if we have errors
+      if(errs.length){
+        sst('err','Search failed',errs.join(' | '));
+      } else {
+        sst('none');
+      }
+      return;
+    }
     renderRes(res);
   } catch(e){sst('err','Search failed',e.message);}
 }
